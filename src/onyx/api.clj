@@ -145,7 +145,6 @@
 
 (defn ^{:no-doc true} create-submit-job-entry [id config job tasks]
   (let [task-ids (mapv :id tasks)
-        job (update job :catalog expand-n-peers)
         scheduler (:task-scheduler job)
         sat (saturation (:catalog job))
         task-saturation (task-saturation (:catalog job) tasks)
@@ -252,7 +251,8 @@
             id (get-in job [:metadata :job-id] (random-uuid))
             job (-> job
                     (assoc-in [:metadata :job-id] id)
-                    (assoc-in [:metadata :job-hash] job-hash))
+                    (assoc-in [:metadata :job-hash] job-hash)
+                    (update :catalog expand-n-peers))
             tasks (planning/discover-tasks (:catalog job) (:workflow job))
             entry (create-submit-job-entry id peer-config job tasks)
             status (extensions/write-chunk (:log onyx-client) :job-hash job-hash id)]
