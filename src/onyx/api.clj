@@ -145,7 +145,6 @@
 
 (defn ^{:no-doc true} create-submit-job-entry [id config job tasks]
   (let [task-ids (mapv :id tasks)
-        job (update job :catalog expand-n-peers)
         scheduler (:task-scheduler job)
         sat (saturation (:catalog job))
         task-saturation (task-saturation (:catalog job) tasks)
@@ -252,7 +251,8 @@
             id (get-in job [:metadata :job-id] (random-uuid))
             job (-> job
                     (assoc-in [:metadata :job-id] id)
-                    (assoc-in [:metadata :job-hash] job-hash))
+                    (assoc-in [:metadata :job-hash] job-hash)
+                    (update :catalog expand-n-peers))
             tasks (planning/discover-tasks (:catalog job) (:workflow job))
             entry (create-submit-job-entry id peer-config job tasks)
             status (extensions/write-chunk (:log onyx-client) :job-hash job-hash id)]
@@ -474,10 +474,9 @@
   (fn [connector tenancy-id job-id]
     (type connector)))
 
-(defmethod job-state org.apache.curator.framework.imps.CuratorFrameworkImpl
-  [conn tenancy-id job-id]
-  (let [{:keys [alive? replica]} (onyx.log.zookeeper/current-replica conn tenancy-id job-id)
-        job-running? (and alive? (some #{job-id} (:jobs replica)))
+(defmethod job-state :default
+  [{:keys [alive? replica]} tenancy-id job-id]
+  (let [job-running? (and alive? (some #{job-id} (:jobs replica)))
         job-allocations (get-in replica [:allocations job-id])
         allocated-peers (reduce into [] (vals job-allocations))]
     (onyx.peer.log-version/check-compatible-log-versions! (:log-version replica))
@@ -493,14 +492,18 @@
 
       job-running?
       (assoc :job-state (if (empty? job-allocations) 
-                           :unallocated
-                           :running))
+                          :unallocated
+                          :running))
 
       (boolean (some #{job-id} (:killed-jobs replica)))
       (assoc :job-state :killed)
 
       (boolean (some #{job-id} (:completed-jobs replica)))
       (assoc :job-state :completed))))
+
+(defmethod job-state org.apache.curator.framework.imps.CuratorFrameworkImpl
+  [conn tenancy-id job-id]
+  (job-state (onyx.log.zookeeper/current-replica conn tenancy-id job-id) tenancy-id job-id))
 
 (defmethod job-state OnyxClient
   [client tenancy-id job-id]
