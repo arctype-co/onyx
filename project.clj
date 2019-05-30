@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx "0.14.5-SNAPSHOT"
+(defproject org.onyxplatform/onyx "0.14.6-SNAPSHOT"
   :description "Distributed, masterless, high performance, fault tolerant data processing for Clojure"
   :url "https://github.com/onyx-platform/onyx"
   :license {:name "Eclipse Public License"
@@ -11,7 +11,7 @@
                              :username :env
                              :password :env
                              :sign-releases false}}
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/core.async "0.4.474"]
                  ;; lock to 2.9.1 until zookeeper can be upgraded to 3.5
                  [org.apache.curator/curator-test "2.9.1"]

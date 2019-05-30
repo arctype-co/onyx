@@ -1,6 +1,6 @@
 (ns onyx.peer.log-version)
 
-(def version "0.14.5-SNAPSHOT")
+(def version "0.14.6-SNAPSHOT")
 
 (defn parse-semver
   [semantic-version]
