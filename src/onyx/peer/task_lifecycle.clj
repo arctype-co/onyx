@@ -68,11 +68,11 @@
                         (arg-or-default :onyx.peer/idle-max-sleep-ns peer-config)))
 
 (s/defn start-lifecycle? [event start-fn]
-  (let [rets (start-fn event)]
-    (when-not (:start-lifecycle? rets)
+  (let [start? (start-fn event)]
+    (when-not start?
       (info (:onyx.core/log-prefix event)
             "Peer chose not to start the task yet. Backing off and retrying..."))
-    rets))
+    start?))
 
 (defn source-task? [event]
   (empty? (:ingress-tasks (:onyx.core/serialized-task event))))
