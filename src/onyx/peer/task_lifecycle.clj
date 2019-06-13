@@ -1005,7 +1005,7 @@
                      :peer-parent id
                      :args {:id peer-id
                             :group-id (get-in replica [:groups-reverse-index peer-id])}}]
-          (info log-prefix "Peer timed out with no heartbeats. Emitting leave cluster." entry)
+          (warn log-prefix "Peer timed out with no heartbeats. Emitting leave cluster." entry)
           (>!! outbox-ch evict-self-entry)
           (>!! outbox-ch entry))))
     this)
