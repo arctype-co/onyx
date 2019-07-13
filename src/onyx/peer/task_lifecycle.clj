@@ -1067,14 +1067,15 @@
   (exec [this]
     (set! advanced false)
     (let [task-fn (aget lifecycle-fns (.get idx))
-          next-state (task-fn this)]
-      (if advanced
-        (do
-         (.set time-init-state (System/nanoTime))
-         (.idle idle-strategy 1)
-         next-state)
+          ; Heartbeat will only execute when heartbeat-ns has elapsed since the last one
+          next-state (heartbeat! (task-fn this))]
+        (if advanced
+          (do
+            (.set time-init-state (System/nanoTime))
+            (.idle idle-strategy 1)
+            next-state)
         (do (.idle idle-strategy 0)
-            (heartbeat! next-state)))))
+            next-state))))
   (advance [this]
     (let [new-idx (.incrementAndGet idx)]
       (set! advanced true)
