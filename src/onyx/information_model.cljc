@@ -1155,6 +1155,14 @@ may be added by the user as the context is associated to throughout the task pip
              :optional? true
              :added "0.10.0"}
 
+            :onyx.peer/idle-strategy
+            {:doc "Idle strategy to use. The :backoff idle strategy will park the thread after a period of no work queued. The :sleep strategy will force the thread to sleep idle after every unit of work. This may be useful if your task has significant back-pressure and monopolizes the CPU from other threads. Default is to :backoff. :yield will force the thread to yield after every unit of work."
+             :type :keyword
+             :choices [:backoff :sleep :yield] 
+             :default :backoff
+             :optional? true
+             :added "0.15.0"}
+
             :onyx.peer/idle-min-sleep-ns
             {:doc "Number of nanoseconds an idle peer should sleep for when blocked in a particular lifecycle stage. Higher numbers will reduce CPU load when peer is relatively idle. Defaults to 0.05 milliseconds, or 50000 nanoseconds."
              :type :integer
@@ -1810,6 +1818,7 @@ may be added by the user as the context is associated to throughout the task pip
     :onyx.messaging/term-buffer-size.heartbeat
     :onyx.messaging/term-buffer-size.segment
     :onyx.messaging/term-buffer-size.segment-short-circuit
+    :onyx.peer/idle-strategy
     :onyx.peer/idle-min-sleep-ns
     :onyx.peer/idle-max-sleep-ns
     :onyx.peer/stop-task-timeout-ms

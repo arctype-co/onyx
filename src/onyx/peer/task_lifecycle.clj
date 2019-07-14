@@ -56,16 +56,41 @@
             [onyx.types :refer [->MonitorEvent ->MonitorEventLatency]]
             [schema.core :as s]
             [taoensso.timbre :refer [debug info error warn trace fatal]])
-  (:import [org.agrona.concurrent IdleStrategy SleepingIdleStrategy BackoffIdleStrategy]
+  (:import [org.agrona.concurrent IdleStrategy SleepingIdleStrategy BackoffIdleStrategy YieldingIdleStrategy]
            [java.util.concurrent TimeUnit]
            [java.util.concurrent.atomic AtomicLong AtomicInteger]
            [java.util.concurrent.locks LockSupport]))
 
-(defn idle-strategy [peer-config]
-  (BackoffIdleStrategy. 5
-                        5
-                        (arg-or-default :onyx.peer/idle-min-sleep-ns peer-config)
-                        (arg-or-default :onyx.peer/idle-max-sleep-ns peer-config)))
+(defn- sleeping-idle-strategy [min-sleep-ns]
+  (let [base-strat (SleepingIdleStrategy. min-sleep-ns)]
+    (reify IdleStrategy
+      (idle [_ work-units]
+        ; Sleep between all work units
+        (.idle base-strat)))))
+
+(defn- yielding-idle-strategy []
+  (let [base-strat (YieldingIdleStrategy.)]
+    (reify IdleStrategy
+      (idle [_ work-units]
+        ; Yield even if more work
+        (.idle base-strat)))))
+
+(defn idle-strategy [peer-config task-map]
+  (let [config (merge peer-config task-map) ; Allow task-specific configs to override
+        strategy (arg-or-default :onyx.peer/idle-strategy config)]
+    (debug (str "Loading idle strategy " strategy " for task"))
+    (case strategy
+      :backoff 
+      (BackoffIdleStrategy. 5
+                            5
+                            (arg-or-default :onyx.peer/idle-min-sleep-ns config)
+                            (arg-or-default :onyx.peer/idle-max-sleep-ns config))
+
+      :sleep
+      (sleeping-idle-strategy (arg-or-default :onyx.peer/idle-min-sleep-ns config))
+      
+      :yield
+      (yielding-idle-strategy))))
 
 (s/defn start-lifecycle? [event start-fn]
   (let [start? (start-fn event)]
@@ -1114,7 +1139,7 @@
 
 (defn new-state-machine [event peer-config messenger-group coordinator state-store-ch]
   (let [{:keys [onyx.core/input-plugin onyx.core/output-plugin onyx.core/monitoring onyx.core/id 
-                onyx.core/log-prefix onyx.core/serialized-task onyx.core/catalog]} event
+                onyx.core/log-prefix onyx.core/serialized-task onyx.core/catalog onyx.core/task-map]} event
         {:keys [replica-version] :as base-replica} (onyx.log.replica/starting-replica peer-config)
         {:keys [last-heartbeat time-init-state task-state-index]} monitoring
         lifecycles (filter :fn (build-task-fns event))
@@ -1131,7 +1156,7 @@
         sync-backoff-ns (ms->ns (arg-or-default :onyx.peer/initial-sync-backoff-ms peer-config))
         task->grouping-fn (g/compile-grouping-fn catalog (:egress-tasks serialized-task))
         messenger (m/build-messenger peer-config messenger-group monitoring id task->grouping-fn)
-        idle-strategy (idle-strategy peer-config)
+        idle-strategy (idle-strategy peer-config task-map)
         advanced? false
         sealed? false
         watermark-flag false
